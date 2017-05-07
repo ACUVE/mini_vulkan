@@ -70,18 +70,18 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.46.0\Include;C:\Users\k2vision\Desktop\library\glfw-3.2.1.bin.WIN64\include;C:\Users\k2vision\Desktop\library\glm-0.9.8.4\glm;$(IncludePath)</IncludePath>
+    <IncludePath>..\!library\glfw-3.2.1.bin.WIN64\include;..\!library\glm-0.9.8.4;C:\VulkanSDK\1.0.46.0\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.46.0\Include;C:\Users\k2vision\Desktop\library\glfw-3.2.1.bin.WIN64\include;C:\Users\k2vision\Desktop\library\glm-0.9.8.4\glm;$(IncludePath)</IncludePath>
+    <IncludePath>..\!library\glfw-3.2.1.bin.WIN64\include;..\!library\glm-0.9.8.4;C:\VulkanSDK\1.0.46.0\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.46.0\Include;C:\Users\k2vision\Desktop\library\glfw-3.2.1.bin.WIN64\include;C:\Users\k2vision\Desktop\library\glm-0.9.8.4\glm;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.46.0\Lib;C:\Users\k2vision\Desktop\library\glfw-3.2.1.bin.WIN64\lib-vc2015;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\VulkanSDK\1.0.46.0\Lib;..\!library\glfw-3.2.1.bin.WIN64\lib-vc2015;$(LibraryPath)</LibraryPath>
+    <IncludePath>..\!library\glfw-3.2.1.bin.WIN64\include;..\!library\glm-0.9.8.4;C:\VulkanSDK\1.0.46.0\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.46.0\Include;C:\Users\k2vision\Desktop\library\glfw-3.2.1.bin.WIN64\include;C:\Users\k2vision\Desktop\library\glm-0.9.8.4\glm;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.46.0\Lib;C:\Users\k2vision\Desktop\library\glfw-3.2.1.bin.WIN64\lib-vc2015;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\VulkanSDK\1.0.46.0\Lib;..\!library\glfw-3.2.1.bin.WIN64\lib-vc2015;$(LibraryPath)</LibraryPath>
+    <IncludePath>..\!library\glfw-3.2.1.bin.WIN64\include;..\!library\glm-0.9.8.4;C:\VulkanSDK\1.0.46.0\Include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
