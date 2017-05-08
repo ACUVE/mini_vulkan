@@ -421,23 +421,70 @@ private:
         semaphore_render_finished{};
 
 public:
-    vulkan_window( vk::Instance _instance, vk::PhysicalDevice _physical_device )
-        : instance( _instance )
+    vulkan_window( std::nullptr_t )
+    {
+    }
+    vulkan_window( GLFWwindow *_window )
+        : window( _window )
+    {
+    }
+    vulkan_window(
+        vk::Instance _instance, vk::PhysicalDevice _physical_device = nullptr )
+        : vulkan_window( nullptr, _instance, _physical_device )
+    {
+    }
+    vulkan_window(
+        GLFWwindow *_window = nullptr,
+        vk::Instance _instance = nullptr,
+        vk::PhysicalDevice _physical_device = nullptr )
+        : window( _window )
+        , instance( _instance )
         , physical_device( _physical_device )
     {
+        if( window )
+        {
+            glfwSetWindowUserPointer( window, this );
+        }
     }
     vulkan_window( vulkan_window const & ) = delete;
     vulkan_window( vulkan_window && ) = delete;
     vulkan_window &operator=( vulkan_window const & ) = delete;
     vulkan_window &operator=( vulkan_window && ) = delete;
-    ~vulkan_window() = default;
+    ~vulkan_window( void ) = default;
 
     operator GLFWwindow *( void )
     {
         return window;
     }
 
-    void create()
+    void set_instance( vk::Instance _instance )
+    {
+        instance = _instance;
+    }
+    void set_physical_device( vk::PhysicalDevice _physical_device )
+    {
+        if( !instance )
+        {
+            throw std::runtime_error(
+                "vulkan_window::set_physical_device: error!" );
+        }
+        physical_device = _physical_device;
+    }
+    void set_device( vk::Device _device )
+    {
+        if( graphics_family_index ==
+                std::numeric_limits< std::uint32_t >::max() ||
+            surface_family_index ==
+                std::numeric_limits< std::uint32_t >::max() )
+        {
+            throw std::runtime_error( "vulkan_window::set_device: error!" );
+        }
+        if( device ) return;
+        device = _device;
+        graphics_queue = device.getQueue( graphics_family_index, 0u );
+        surface_queue = device.getQueue( surface_family_index, 0u );
+    }
+    void create_window( void )
     {
         if( window ) return;
         glfwWindowHint( GLFW_CLIENT_API, GLFW_NO_API );
@@ -445,6 +492,14 @@ public:
         glfwSetWindowUserPointer( window, this );
         glfwSetWindowSizeCallback(
             window, &vulkan_window::window_size_callback );
+    }
+    void create_surface( void )
+    {
+        if( !window || !instance )
+        {
+            throw std::runtime_error( "vulkan_window::create_surface: error!" );
+        }
+        if( surface ) return;
         surface = create_glfw_surface( instance, window );
     }
     std::set< std::uint32_t > select_queue_family( void )
@@ -469,20 +524,6 @@ public:
                     physical_device, *surface, queue_familiy_properties ) );
         }
         return {graphics_family_index, surface_family_index};
-    }
-    void set_device( vk::Device _device )
-    {
-        if( graphics_family_index ==
-                std::numeric_limits< std::uint32_t >::max() ||
-            surface_family_index ==
-                std::numeric_limits< std::uint32_t >::max() )
-        {
-            throw std::runtime_error( "vulkan_window::set_device: error!" );
-        }
-        if( device ) return;
-        device = _device;
-        graphics_queue = device.getQueue( graphics_family_index, 0u );
-        surface_queue = device.getQueue( surface_family_index, 0u );
     }
     void initialize_presentation( void )
     {
@@ -588,7 +629,7 @@ private:
             vk::PipelineStageFlagBits::eColorAttachmentOutput;
         subpass_dependency.dstAccessMask =
             vk::AccessFlagBits::eColorAttachmentRead |
-            vk::AccessFlagBits::eColorAttachmentRead;
+            vk::AccessFlagBits::eColorAttachmentWrite;
 
         vk::RenderPassCreateInfo render_pass_info;
         render_pass_info.attachmentCount = 1u;
@@ -792,7 +833,7 @@ void main_loop( vk::Device device, std::unique_ptr< vulkan_window > window )
     window->initialize_presentation();
     while( true )
     {
-        if( glfwWindowShouldClose( *window ) ) return;
+        if( glfwWindowShouldClose( *window ) ) break;
         glfwPollEvents();
         window->present();
     }
@@ -827,7 +868,8 @@ int main() try
     auto &device = devices[ device_index ];
 
     auto window = std::make_unique< vulkan_window >( *instance, device );
-    window->create();
+    window->create_window();
+    window->create_surface();
 
     auto queue_family_index = window->select_queue_family();
     auto ldevice = create_device(
