@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include <set>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
@@ -12,6 +13,8 @@
 #pragma comment( lib, "vulkan-1" )
 #pragma comment( lib, "glfw3" )
 #endif
+
+using namespace std::string_literals;
 
 #ifdef NDEBUG
 constexpr bool DEBUG_MODE = false;
@@ -536,8 +539,17 @@ public:
         create_command_buffer();
         create_semaphore();
     }
+    void reinitialize_presentation( void )
+    {
+        create_swapchain();
+        create_image_view();
+        create_render_pass();
+        create_graphics_pipeline();
+        create_framebuffer();
+        create_command_buffer();
+    }
 
-    void present( void )
+    void present( void ) try
     {
         auto image_index = device.acquireNextImageKHR(
             *swapchain,
@@ -569,6 +581,20 @@ public:
         present_info.pSwapchains = swapchains;
         present_info.pImageIndices = &image_index.value;
         surface_queue.presentKHR( present_info );
+    }
+    catch( std::system_error &err )
+    {
+        auto &code = err.code();
+        auto &category = code.category();
+        if( category.name() == "vk::Result"s &&
+            vk::Result( code.value() ) == vk::Result::eErrorOutOfDateKHR )
+        {
+            reinitialize_presentation();
+        }
+        else
+        {
+            throw;
+        }
     }
 
 private:
@@ -812,11 +838,7 @@ private:
     {
         std::cout << "vulkan_window::window_size_changed" << std::endl;
         device.waitIdle();
-        create_swapchain();
-        create_image_view();
-        create_render_pass();
-        create_graphics_pipeline();
-        create_command_buffer();
+        reinitialize_presentation();
     }
     static void
     window_size_callback( GLFWwindow *window, int width, int height )
