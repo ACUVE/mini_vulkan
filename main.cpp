@@ -1,4 +1,5 @@
 #include "VDeleter.hpp"
+#include "vulkan_util.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <fstream>
@@ -24,6 +25,24 @@ constexpr bool DEBUG_MODE = true;
 constexpr std::size_t INVALID_INDEX = std::numeric_limits< std::size_t >::max();
 constexpr unsigned int WIDTH = 800;
 constexpr unsigned int HEIGHT = 600;
+
+struct Vertex
+{
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static auto get_vertex_input_description( std::uint32_t binding = 0u )
+    {
+        return vulkan::get_vertex_input_description< Vertex >(
+            binding, &Vertex::pos, &Vertex::color );
+    }
+};
+
+std::vector< Vertex > const vertices = {
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+};
 
 static VKAPI_ATTR vk::Bool32 VKAPI_CALL debug_callback(
     VkDebugReportFlagsEXT flags,
@@ -389,6 +408,32 @@ create_shader_module( vk::Device device, std::vector< char > const &code )
     return device.createShaderModuleUnique( shader_module_info );
 }
 
+std::uint32_t select_memory_type_index(
+    vk::PhysicalDeviceMemoryProperties const &memory_properties,
+    std::uint32_t memory_type_bits,
+    vk::MemoryPropertyFlags properties )
+{
+    for( std::uint32_t i = 0u; i < memory_properties.memoryTypeCount; ++i )
+    {
+        if( memory_type_bits & ( static_cast< std::uint32_t >( 1u ) << i ) &&
+            ( memory_properties.memoryTypes[ i ].propertyFlags & properties ) ==
+                properties )
+        {
+            return i;
+        }
+    }
+    throw std::runtime_error( "select_memory_type_index: error!" );
+}
+std::uint32_t select_memory_type_index(
+    vk::PhysicalDevice physical_device,
+    std::uint32_t memory_type_bits,
+    vk::MemoryPropertyFlags properties )
+{
+    auto memory_properties = physical_device.getMemoryProperties();
+    return select_memory_type_index(
+        memory_properties, memory_type_bits, properties );
+}
+
 class vulkan_window
 {
 private:
@@ -418,6 +463,8 @@ private:
     std::vector< vk::UniqueFramebuffer > framebuffers{};
 
     vk::UniqueCommandPool command_pool{};
+    vk::UniqueBuffer vertex_buffer{};
+    vk::UniqueDeviceMemory vertex_buffer_memory{};
     std::vector< vk::UniqueCommandBuffer > command_buffers{};
 
     vk::UniqueSemaphore semaphore_image_available{},
@@ -536,6 +583,7 @@ public:
         create_graphics_pipeline();
         create_framebuffer();
         create_command_pool();
+        create_vertex_buffer();
         create_command_buffer();
         create_semaphore();
     }
@@ -683,9 +731,20 @@ private:
         pipeline_shader_stage_info[ 1 ].module = *fragmentshader_module;
         pipeline_shader_stage_info[ 1 ].pName = "main";
 
-        vk::PipelineVertexInputStateCreateInfo pipeline_vertex_imput_state_info;
-        pipeline_vertex_imput_state_info.vertexBindingDescriptionCount = 0;
-        pipeline_vertex_imput_state_info.vertexAttributeDescriptionCount = 0;
+        vk::PipelineVertexInputStateCreateInfo pipeline_vertex_input_state_info;
+        auto const vertex_input_description =
+            Vertex::get_vertex_input_description();
+        auto const &binding_description =
+            std::get< 0 >( vertex_input_description );
+        auto const &attribute_description =
+            std::get< 1 >( vertex_input_description );
+        pipeline_vertex_input_state_info.vertexBindingDescriptionCount = 1;
+        pipeline_vertex_input_state_info.pVertexBindingDescriptions =
+            &binding_description;
+        pipeline_vertex_input_state_info.vertexAttributeDescriptionCount =
+            attribute_description.size();
+        pipeline_vertex_input_state_info.pVertexAttributeDescriptions =
+            attribute_description.data();
 
         vk::PipelineInputAssemblyStateCreateInfo
             pipeline_input_assembly_state_info;
@@ -748,7 +807,7 @@ private:
         graphics_pipeline_info.stageCount = 2u;
         graphics_pipeline_info.pStages = pipeline_shader_stage_info;
         graphics_pipeline_info.pVertexInputState =
-            &pipeline_vertex_imput_state_info;
+            &pipeline_vertex_input_state_info;
         graphics_pipeline_info.pInputAssemblyState =
             &pipeline_input_assembly_state_info;
         graphics_pipeline_info.pViewportState = &pipeline_viewport_state_info;
@@ -789,6 +848,34 @@ private:
         command_pool_info.queueFamilyIndex = graphics_family_index;
         command_pool = device.createCommandPoolUnique( command_pool_info );
     }
+    void create_vertex_buffer( void )
+    {
+        vk::BufferCreateInfo buffer_create_info;
+        buffer_create_info.size = sizeof( Vertex ) * vertices.size();
+        buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer;
+        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+        vertex_buffer = device.createBufferUnique( buffer_create_info );
+
+        auto memory_requirements =
+            device.getBufferMemoryRequirements( *vertex_buffer );
+
+        vk::MemoryAllocateInfo memory_allocate_info;
+        memory_allocate_info.allocationSize = memory_requirements.size;
+        memory_allocate_info.memoryTypeIndex = select_memory_type_index(
+            physical_device,
+            memory_requirements.memoryTypeBits,
+            vk::MemoryPropertyFlagBits::eHostVisible |
+                vk::MemoryPropertyFlagBits::eHostCoherent );
+        vertex_buffer_memory =
+            device.allocateMemoryUnique( memory_allocate_info );
+
+        device.bindBufferMemory( *vertex_buffer, *vertex_buffer_memory, 0u );
+
+        auto data = device.mapMemory(
+            *vertex_buffer_memory, 0u, buffer_create_info.size );
+        std::memcpy( data, vertices.data(), buffer_create_info.size );
+        device.unmapMemory( *vertex_buffer_memory );
+    }
     void create_command_buffer( void )
     {
         vk::CommandBufferAllocateInfo command_buffer_allocation_info;
@@ -820,6 +907,10 @@ private:
                 render_pass_begin_info, vk::SubpassContents::eInline );
             command_buffers[ i ]->bindPipeline(
                 vk::PipelineBindPoint::eGraphics, *graphics_pipeline );
+            vk::Buffer vertex_buffers[] = {*vertex_buffer};
+            vk::DeviceSize vertex_buffer_offsets[] = {0};
+            command_buffers[ i ]->bindVertexBuffers(
+                0, 1, vertex_buffers, vertex_buffer_offsets );
             command_buffers[ i ]->draw( 3, 1, 0, 0 );
             command_buffers[ i ]->endRenderPass();
             command_buffers[ i ]->end();
