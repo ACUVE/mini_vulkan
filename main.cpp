@@ -434,6 +434,33 @@ std::uint32_t select_memory_type_index(
         memory_properties, memory_type_bits, properties );
 }
 
+std::tuple< vk::UniqueBuffer, vk::UniqueDeviceMemory > create_buffer(
+    vk::PhysicalDevice physical_device,
+    vk::Device device,
+    vk::DeviceSize size,
+    vk::BufferUsageFlags usage,
+    vk::MemoryPropertyFlags properties )
+{
+
+    vk::BufferCreateInfo buffer_create_info;
+    buffer_create_info.size = size;
+    buffer_create_info.usage = usage;
+    buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
+    auto buffer = device.createBufferUnique( buffer_create_info );
+
+    auto memory_requirements = device.getBufferMemoryRequirements( *buffer );
+
+    vk::MemoryAllocateInfo memory_allocate_info;
+    memory_allocate_info.allocationSize = memory_requirements.size;
+    memory_allocate_info.memoryTypeIndex = select_memory_type_index(
+        physical_device, memory_requirements.memoryTypeBits, properties );
+    auto buffer_memory = device.allocateMemoryUnique( memory_allocate_info );
+
+    device.bindBufferMemory( *buffer, *buffer_memory, 0u );
+
+    return std::make_tuple( std::move( buffer ), std::move( buffer_memory ) );
+}
+
 class vulkan_window
 {
 private:
@@ -850,30 +877,16 @@ private:
     }
     void create_vertex_buffer( void )
     {
-        vk::BufferCreateInfo buffer_create_info;
-        buffer_create_info.size = sizeof( Vertex ) * vertices.size();
-        buffer_create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer;
-        buffer_create_info.sharingMode = vk::SharingMode::eExclusive;
-        vertex_buffer = device.createBufferUnique( buffer_create_info );
-
-        auto memory_requirements =
-            device.getBufferMemoryRequirements( *vertex_buffer );
-
-        vk::MemoryAllocateInfo memory_allocate_info;
-        memory_allocate_info.allocationSize = memory_requirements.size;
-        memory_allocate_info.memoryTypeIndex = select_memory_type_index(
+        auto size = sizeof( Vertex ) * vertices.size();
+        std::tie( vertex_buffer, vertex_buffer_memory ) = create_buffer(
             physical_device,
-            memory_requirements.memoryTypeBits,
+            device,
+            size,
+            vk::BufferUsageFlagBits::eVertexBuffer,
             vk::MemoryPropertyFlagBits::eHostVisible |
                 vk::MemoryPropertyFlagBits::eHostCoherent );
-        vertex_buffer_memory =
-            device.allocateMemoryUnique( memory_allocate_info );
-
-        device.bindBufferMemory( *vertex_buffer, *vertex_buffer_memory, 0u );
-
-        auto data = device.mapMemory(
-            *vertex_buffer_memory, 0u, buffer_create_info.size );
-        std::memcpy( data, vertices.data(), buffer_create_info.size );
+        auto data = device.mapMemory( *vertex_buffer_memory, 0u, size );
+        std::memcpy( data, vertices.data(), size );
         device.unmapMemory( *vertex_buffer_memory );
     }
     void create_command_buffer( void )
