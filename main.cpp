@@ -461,13 +461,20 @@ std::tuple< vk::UniqueBuffer, vk::UniqueDeviceMemory > create_buffer(
     return std::make_tuple( std::move( buffer ), std::move( buffer_memory ) );
 }
 
-void copy_buffer( vk::Device device, vk::Queue queue, vk::CommandPool command_pool, vk::Buffer src_buffer, vk::Buffer dst_buffer, vk::DeviceSize size )
+void copy_buffer(
+    vk::Device device,
+    vk::Queue queue,
+    vk::CommandPool command_pool,
+    vk::Buffer src_buffer,
+    vk::Buffer dst_buffer,
+    vk::DeviceSize size )
 {
     vk::CommandBufferAllocateInfo command_buffer_allocate_info;
     command_buffer_allocate_info.level = vk::CommandBufferLevel::ePrimary;
     command_buffer_allocate_info.commandPool = command_pool;
     command_buffer_allocate_info.commandBufferCount = 1;
-    auto command_buffers = device.allocateCommandBuffersUnique( command_buffer_allocate_info );
+    auto command_buffers =
+        device.allocateCommandBuffersUnique( command_buffer_allocate_info );
     auto &command_buffer = command_buffers[ 0 ];
 
     vk::CommandBufferBeginInfo begin_info;
@@ -517,7 +524,8 @@ private:
 
     vk::UniqueCommandPool command_pool{};
     vk::UniqueBuffer vertex_buffer{}, vertex_staging_buffer{};
-    vk::UniqueDeviceMemory vertex_buffer_memory{}, vertex_staging_buffer_memory{};
+    vk::UniqueDeviceMemory vertex_buffer_memory{},
+        vertex_staging_buffer_memory{};
     std::vector< vk::UniqueCommandBuffer > command_buffers{};
 
     vk::UniqueSemaphore semaphore_image_available{},
@@ -905,13 +913,32 @@ private:
     {
         vk::DeviceSize size = sizeof( Vertex ) * vertices.size();
 
-        std::tie( vertex_staging_buffer, vertex_staging_buffer_memory ) = create_buffer( physical_device, device, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent );
+        std::tie( vertex_staging_buffer, vertex_staging_buffer_memory ) =
+            create_buffer(
+                physical_device,
+                device,
+                size,
+                vk::BufferUsageFlagBits::eTransferSrc,
+                vk::MemoryPropertyFlagBits::eHostVisible |
+                    vk::MemoryPropertyFlagBits::eHostCoherent );
         auto data = device.mapMemory( *vertex_staging_buffer_memory, 0u, size );
         std::memcpy( data, vertices.data(), size );
         device.unmapMemory( *vertex_staging_buffer_memory );
 
-        std::tie( vertex_buffer, vertex_buffer_memory ) = create_buffer( physical_device, device, size, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal );
-        copy_buffer( device, graphics_queue, *command_pool, *vertex_staging_buffer, *vertex_buffer, size );
+        std::tie( vertex_buffer, vertex_buffer_memory ) = create_buffer(
+            physical_device,
+            device,
+            size,
+            vk::BufferUsageFlagBits::eTransferDst |
+                vk::BufferUsageFlagBits::eVertexBuffer,
+            vk::MemoryPropertyFlagBits::eDeviceLocal );
+        copy_buffer(
+            device,
+            graphics_queue,
+            *command_pool,
+            *vertex_staging_buffer,
+            *vertex_buffer,
+            size );
     }
     void create_command_buffer( void )
     {
