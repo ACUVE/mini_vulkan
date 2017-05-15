@@ -39,10 +39,12 @@ struct Vertex
 };
 
 std::vector< Vertex > const vertices = {
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},
 };
+std::vector< std::uint16_t > const indices = {0, 1, 2, 2, 3, 0};
 
 static VKAPI_ATTR vk::Bool32 VKAPI_CALL debug_callback(
     VkDebugReportFlagsEXT flags,
@@ -526,6 +528,8 @@ private:
     vk::UniqueBuffer vertex_buffer{}, vertex_staging_buffer{};
     vk::UniqueDeviceMemory vertex_buffer_memory{},
         vertex_staging_buffer_memory{};
+    vk::UniqueBuffer index_buffer{};
+    vk::UniqueDeviceMemory index_buffer_memory{};
     std::vector< vk::UniqueCommandBuffer > command_buffers{};
 
     vk::UniqueSemaphore semaphore_image_available{},
@@ -645,6 +649,7 @@ public:
         create_framebuffer();
         create_command_pool();
         create_vertex_buffer();
+        create_index_buffer();
         create_command_buffer();
         create_semaphore();
     }
@@ -940,6 +945,41 @@ private:
             *vertex_buffer,
             size );
     }
+    void create_index_buffer( void )
+    {
+        vk::DeviceSize size = sizeof( indices[ 0 ] ) * indices.size();
+        auto staging_buffer_ret = create_buffer(
+            physical_device,
+            device,
+            size,
+            vk::BufferUsageFlagBits::eTransferSrc,
+            vk::MemoryPropertyFlagBits::eHostVisible |
+                vk::MemoryPropertyFlagBits::eHostCoherent );
+        auto &staging_buffer =
+            std::get< vk::UniqueBuffer >( staging_buffer_ret );
+        auto &staging_buffer_memory =
+            std::get< vk::UniqueDeviceMemory >( staging_buffer_ret );
+
+        auto data = device.mapMemory( *staging_buffer_memory, 0u, size );
+        std::memcpy( data, indices.data(), static_cast< std::size_t >( size ) );
+        device.unmapMemory( *staging_buffer_memory );
+
+        std::tie( index_buffer, index_buffer_memory ) = create_buffer(
+            physical_device,
+            device,
+            size,
+            vk::BufferUsageFlagBits::eTransferDst |
+                vk::BufferUsageFlagBits::eIndexBuffer,
+            vk::MemoryPropertyFlagBits::eDeviceLocal );
+
+        copy_buffer(
+            device,
+            graphics_queue,
+            *command_pool,
+            *staging_buffer,
+            *index_buffer,
+            size );
+    }
     void create_command_buffer( void )
     {
         vk::CommandBufferAllocateInfo command_buffer_allocation_info;
@@ -975,7 +1015,15 @@ private:
             vk::DeviceSize vertex_buffer_offsets[] = {0};
             command_buffers[ i ]->bindVertexBuffers(
                 0, 1, vertex_buffers, vertex_buffer_offsets );
-            command_buffers[ i ]->draw( 3, 1, 0, 0 );
+            command_buffers[ i ]->bindIndexBuffer(
+                *index_buffer, 0u, vk::IndexType::eUint16 );
+            // command_buffers[ i ]->draw( 3, 1, 0, 0 );
+            command_buffers[ i ]->drawIndexed(
+                static_cast< std::uint32_t >( indices.size() ),
+                1u,
+                0u,
+                0u,
+                0u );
             command_buffers[ i ]->endRenderPass();
             command_buffers[ i ]->end();
         }
