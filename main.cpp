@@ -203,15 +203,16 @@ std::size_t select_surface_queue_family_index(
 vk::SurfaceFormatKHR select_surface_format(
     std::vector< vk::SurfaceFormatKHR > const &surface_formats )
 {
+    constexpr vk::SurfaceFormatKHR best_format = {
+        vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear};
     if( surface_formats.size() == 1u &&
         surface_formats[ 0 ].format == vk::Format::eUndefined )
     {
-        return {vk::Format::eB8G8R8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear};
+        return best_format;
     }
     for( auto const &format : surface_formats )
     {
-        if( format.format == vk::Format::eB8G8R8Unorm &&
-            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear )
+        if( format == best_format )
         {
             return format;
         }
