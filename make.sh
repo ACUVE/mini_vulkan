@@ -1,1 +1,1 @@
-g++ main.cpp -lglfw -lvulkan
+g++ --std=c++1z main.cpp -lglfw -lvulkan -g

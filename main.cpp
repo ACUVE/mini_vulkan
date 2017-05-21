@@ -2,9 +2,12 @@
 #include "vulkan_util.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
+#include <iterator>
 #include <set>
 #include <string>
 #include <vector>
@@ -37,6 +40,12 @@ struct Vertex
             binding, &Vertex::pos, &Vertex::color );
     }
 };
+struct UniformBufferObject
+{
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
 
 std::vector< Vertex > const vertices = {
     {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -57,9 +66,9 @@ static VKAPI_ATTR vk::Bool32 VKAPI_CALL debug_callback(
     void *pUserData )
 {
     std::clog << "-----------------------------" << std::endl;
-    std::clog << pMessage << std::endl;
+    std::clog << pLayerPrefix << ": " << pMessage << std::endl;
 
-    return VK_TRUE;
+    return true;
 }
 
 vk::UniqueInstance create_instance(
@@ -120,7 +129,7 @@ VDeleter< VkDebugReportCallbackEXT > create_debug_report(
             static_cast< VkInstance >( instance ), deletefunc );
         vk::DebugReportCallbackCreateInfoEXT dbg_callback_create_info;
         dbg_callback_create_info.flags =
-            vk::DebugReportFlagBitsEXT::eInformation |
+            // vk::DebugReportFlagBitsEXT::eInformation |
             vk::DebugReportFlagBitsEXT::eWarning |
             vk::DebugReportFlagBitsEXT::ePerformanceWarning |
             vk::DebugReportFlagBitsEXT::eError |
@@ -518,6 +527,8 @@ private:
     std::vector< vk::Image > images{};
     std::vector< vk::UniqueImageView > image_views{};
 
+    vk::UniqueDescriptorSetLayout ubo_descriptor_set_layout{};
+
     vk::UniqueShaderModule vertexshader_module{}, fragmentshader_module{};
     vk::UniquePipelineLayout pipeline_layout{};
     vk::UniqueRenderPass render_pass{};
@@ -531,6 +542,10 @@ private:
         vertex_staging_buffer_memory{};
     vk::UniqueBuffer index_buffer{};
     vk::UniqueDeviceMemory index_buffer_memory{};
+    vk::UniqueBuffer uniform_buffer{};
+    vk::UniqueDeviceMemory uniform_buffer_memory{};
+    vk::UniqueDescriptorPool uniform_descriptor_pool{};
+    vk::UniqueDescriptorSet uniform_descriptor_set{};
     std::vector< vk::UniqueCommandBuffer > command_buffers{};
 
     vk::UniqueSemaphore semaphore_image_available{},
@@ -646,11 +661,15 @@ public:
         create_swapchain();
         create_image_view();
         create_render_pass();
+        create_descriptor_set_layout();
         create_graphics_pipeline();
         create_framebuffer();
         create_command_pool();
         create_vertex_buffer();
         create_index_buffer();
+        create_uniform_buffer();
+        create_descriptor_pool();
+        create_descriptor_set();
         create_command_buffer();
         create_semaphore();
     }
@@ -666,6 +685,41 @@ public:
 
     void present( void ) try
     {
+        static std::size_t count = 0u;
+        static auto start = std::chrono::high_resolution_clock::now();
+        count++;
+        if( count % 10000 == 0 )
+        {
+            count = 0u;
+            auto end = std::chrono::high_resolution_clock::now();
+            std::cout << 1 /
+                    std::chrono::duration< double >( end - start ).count() *
+                    10000
+                      << std::endl;
+            start = end;
+        }
+
+        UniformBufferObject ubo;
+        ubo.model = glm::rotate(
+            glm::mat4(),
+            count * glm::radians( 90.0f ),
+            glm::vec3( 0.0f, 0.0f, 1.0f ) );
+        ubo.view = glm::lookAt(
+            glm::vec3( 2.0f, 2.0f, 2.0f ),
+            glm::vec3( 0.0f, 0.0f, 0.0f ),
+            glm::vec3( 0.0f, 0.0f, 1.0f ) );
+        ubo.proj = glm::perspective(
+            glm::radians( 45.0f ),
+            extent.width / static_cast< float >( extent.height ),
+            0.1f,
+            10.0f );
+        ubo.proj[ 1 ][ 1 ] *= -1;
+
+        auto data = device.mapMemory(
+            *uniform_buffer_memory, 0, sizeof( UniformBufferObject ) );
+        std::memcpy( data, &ubo, sizeof( UniformBufferObject ) );
+        device.unmapMemory( *uniform_buffer_memory );
+
         auto image_index = device.acquireNextImageKHR(
             *swapchain,
             std::numeric_limits< std::uint64_t >::max(),
@@ -781,6 +835,24 @@ private:
         render_pass_info.pDependencies = &subpass_dependency;
         render_pass = device.createRenderPassUnique( render_pass_info );
     }
+    void create_descriptor_set_layout( void )
+    {
+        vk::DescriptorSetLayoutBinding ubo_descriptor_set_layout_binding;
+        ubo_descriptor_set_layout_binding.binding = 0u;
+        ubo_descriptor_set_layout_binding.descriptorType =
+            vk::DescriptorType::eUniformBuffer;
+        ubo_descriptor_set_layout_binding.descriptorCount = 1u;
+        ubo_descriptor_set_layout_binding.stageFlags =
+            vk::ShaderStageFlagBits::eVertex;
+
+        vk::DescriptorSetLayoutCreateInfo ubo_descriptor_set_layout_info;
+        ubo_descriptor_set_layout_info.bindingCount = 1u;
+        ubo_descriptor_set_layout_info.pBindings =
+            &ubo_descriptor_set_layout_binding;
+
+        ubo_descriptor_set_layout = device.createDescriptorSetLayoutUnique(
+            ubo_descriptor_set_layout_info );
+    }
     void create_graphics_pipeline( void )
     {
         auto vertexshader = read_file( "vert.spv" );
@@ -845,7 +917,8 @@ private:
         pipeline_rasterization_state_info.lineWidth = 1.0f;
         pipeline_rasterization_state_info.cullMode =
             vk::CullModeFlagBits::eBack;
-        pipeline_rasterization_state_info.frontFace = vk::FrontFace::eClockwise;
+        pipeline_rasterization_state_info.frontFace =
+            vk::FrontFace::eCounterClockwise;
         pipeline_rasterization_state_info.depthBiasEnable = VK_FALSE;
 
         vk::PipelineMultisampleStateCreateInfo pipeline_multisample_state_info;
@@ -867,6 +940,8 @@ private:
             &pipeline_color_blend_attachment_state;
 
         vk::PipelineLayoutCreateInfo pipeline_layout_info;
+        pipeline_layout_info.setLayoutCount = 1u;
+        pipeline_layout_info.pSetLayouts = &*ubo_descriptor_set_layout;
         pipeline_layout =
             device.createPipelineLayoutUnique( pipeline_layout_info );
 
@@ -981,6 +1056,60 @@ private:
             *index_buffer,
             size );
     }
+    void create_uniform_buffer( void )
+    {
+        vk::DeviceSize size = sizeof( UniformBufferObject );
+        std::tie( uniform_buffer, uniform_buffer_memory ) = create_buffer(
+            physical_device,
+            device,
+            size,
+            vk::BufferUsageFlagBits::eUniformBuffer,
+            vk::MemoryPropertyFlagBits::eHostVisible |
+                vk::MemoryPropertyFlagBits::eHostCoherent );
+    }
+    void create_descriptor_pool( void )
+    {
+        vk::DescriptorPoolSize descriptor_pool_size[ 1 ];
+        descriptor_pool_size[ 0 ].type = vk::DescriptorType::eUniformBuffer;
+        descriptor_pool_size[ 0 ].descriptorCount = 1u;
+
+        vk::DescriptorPoolCreateInfo descriptor_pool_info;
+        descriptor_pool_info.flags =
+            vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+        descriptor_pool_info.poolSizeCount =
+            static_cast< std::uint32_t >( std::size( descriptor_pool_size ) );
+        descriptor_pool_info.pPoolSizes = descriptor_pool_size;
+        descriptor_pool_info.maxSets = 1u;
+        uniform_descriptor_pool =
+            device.createDescriptorPoolUnique( descriptor_pool_info );
+    }
+    void create_descriptor_set( void )
+    {
+        vk::DescriptorSetLayout descriptor_set_layouts[] = {
+            *ubo_descriptor_set_layout};
+        vk::DescriptorSetAllocateInfo descriptor_set_allocate_info;
+        descriptor_set_allocate_info.descriptorPool = *uniform_descriptor_pool;
+        descriptor_set_allocate_info.descriptorSetCount =
+            static_cast< std::uint32_t >( std::size( descriptor_set_layouts ) );
+        descriptor_set_allocate_info.pSetLayouts = descriptor_set_layouts;
+        uniform_descriptor_set = std::move( device.allocateDescriptorSetsUnique(
+            descriptor_set_allocate_info )[ 0 ] );
+
+        vk::DescriptorBufferInfo descriptor_buffer_info;
+        descriptor_buffer_info.buffer = *uniform_buffer;
+        descriptor_buffer_info.offset = 0u;
+        descriptor_buffer_info.range = sizeof( UniformBufferObject );
+
+        vk::WriteDescriptorSet write_descriptor_set;
+        write_descriptor_set.dstSet = *uniform_descriptor_set;
+        write_descriptor_set.dstBinding = 0u;
+        write_descriptor_set.dstArrayElement = 0u;
+        write_descriptor_set.descriptorType =
+            vk::DescriptorType::eUniformBuffer;
+        write_descriptor_set.descriptorCount = 1u;
+        write_descriptor_set.pBufferInfo = &descriptor_buffer_info;
+        device.updateDescriptorSets( write_descriptor_set, nullptr );
+    }
     void create_command_buffer( void )
     {
         vk::CommandBufferAllocateInfo command_buffer_allocation_info;
@@ -1018,6 +1147,12 @@ private:
                 0, 1, vertex_buffers, vertex_buffer_offsets );
             command_buffers[ i ]->bindIndexBuffer(
                 *index_buffer, 0u, vk::IndexType::eUint16 );
+            command_buffers[ i ]->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics,
+                *pipeline_layout,
+                0u,
+                *uniform_descriptor_set,
+                nullptr );
             // command_buffers[ i ]->draw( 3, 1, 0, 0 );
             command_buffers[ i ]->drawIndexed(
                 static_cast< std::uint32_t >( indices.size() ),
