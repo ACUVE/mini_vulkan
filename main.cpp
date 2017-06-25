@@ -1024,17 +1024,15 @@ private:
     void create_index_buffer( void )
     {
         vk::DeviceSize size = sizeof( indices[ 0 ] ) * indices.size();
-        auto staging_buffer_ret = create_buffer(
+        vk::UniqueBuffer staging_buffer;
+        vk::UniqueDeviceMemory staging_buffer_memory;
+        std::tie( staging_buffer_memory, staging_buffer ) = create_buffer(
             physical_device,
             device,
             size,
             vk::BufferUsageFlagBits::eTransferSrc,
             vk::MemoryPropertyFlagBits::eHostVisible |
                 vk::MemoryPropertyFlagBits::eHostCoherent );
-        auto &staging_buffer_memory =
-            std::get< vk::UniqueDeviceMemory >( staging_buffer_ret );
-        auto &staging_buffer =
-            std::get< vk::UniqueBuffer >( staging_buffer_ret );
 
         auto data = device.mapMemory( *staging_buffer_memory, 0u, size );
         std::memcpy( data, indices.data(), static_cast< std::size_t >( size ) );
