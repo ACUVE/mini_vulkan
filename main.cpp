@@ -129,7 +129,7 @@ VDeleter< VkDebugReportCallbackEXT > create_debug_report(
             static_cast< VkInstance >( instance ), deletefunc );
         vk::DebugReportCallbackCreateInfoEXT dbg_callback_create_info;
         dbg_callback_create_info.flags =
-            // vk::DebugReportFlagBitsEXT::eInformation |
+            vk::DebugReportFlagBitsEXT::eInformation |
             vk::DebugReportFlagBitsEXT::eWarning |
             vk::DebugReportFlagBitsEXT::ePerformanceWarning |
             vk::DebugReportFlagBitsEXT::eError |
@@ -446,7 +446,7 @@ std::uint32_t select_memory_type_index(
         memory_properties, memory_type_bits, properties );
 }
 
-std::tuple< vk::UniqueBuffer, vk::UniqueDeviceMemory > create_buffer(
+std::tuple< vk::UniqueDeviceMemory, vk::UniqueBuffer > create_buffer(
     vk::PhysicalDevice physical_device,
     vk::Device device,
     vk::DeviceSize size,
@@ -470,7 +470,7 @@ std::tuple< vk::UniqueBuffer, vk::UniqueDeviceMemory > create_buffer(
 
     device.bindBufferMemory( *buffer, *buffer_memory, 0u );
 
-    return std::make_tuple( std::move( buffer ), std::move( buffer_memory ) );
+    return std::make_tuple( std::move( buffer_memory ), std::move( buffer ) );
 }
 
 void copy_buffer(
@@ -537,13 +537,13 @@ private:
     std::vector< vk::UniqueFramebuffer > framebuffers{};
 
     vk::UniqueCommandPool command_pool{};
-    vk::UniqueBuffer vertex_buffer{}, vertex_staging_buffer{};
     vk::UniqueDeviceMemory vertex_buffer_memory{},
         vertex_staging_buffer_memory{};
-    vk::UniqueBuffer index_buffer{};
+    vk::UniqueBuffer vertex_buffer{}, vertex_staging_buffer{};
     vk::UniqueDeviceMemory index_buffer_memory{};
-    vk::UniqueBuffer uniform_buffer{};
+    vk::UniqueBuffer index_buffer{};
     vk::UniqueDeviceMemory uniform_buffer_memory{};
+    vk::UniqueBuffer uniform_buffer{};
     vk::UniqueDescriptorPool uniform_descriptor_pool{};
     vk::UniqueDescriptorSet uniform_descriptor_set{};
     std::vector< vk::UniqueCommandBuffer > command_buffers{};
@@ -994,7 +994,7 @@ private:
     {
         vk::DeviceSize size = sizeof( Vertex ) * vertices.size();
 
-        std::tie( vertex_staging_buffer, vertex_staging_buffer_memory ) =
+        std::tie( vertex_staging_buffer_memory, vertex_staging_buffer ) =
             create_buffer(
                 physical_device,
                 device,
@@ -1006,7 +1006,7 @@ private:
         std::memcpy( data, vertices.data(), size );
         device.unmapMemory( *vertex_staging_buffer_memory );
 
-        std::tie( vertex_buffer, vertex_buffer_memory ) = create_buffer(
+        std::tie( vertex_buffer_memory, vertex_buffer ) = create_buffer(
             physical_device,
             device,
             size,
@@ -1031,16 +1031,16 @@ private:
             vk::BufferUsageFlagBits::eTransferSrc,
             vk::MemoryPropertyFlagBits::eHostVisible |
                 vk::MemoryPropertyFlagBits::eHostCoherent );
-        auto &staging_buffer =
-            std::get< vk::UniqueBuffer >( staging_buffer_ret );
         auto &staging_buffer_memory =
             std::get< vk::UniqueDeviceMemory >( staging_buffer_ret );
+        auto &staging_buffer =
+            std::get< vk::UniqueBuffer >( staging_buffer_ret );
 
         auto data = device.mapMemory( *staging_buffer_memory, 0u, size );
         std::memcpy( data, indices.data(), static_cast< std::size_t >( size ) );
         device.unmapMemory( *staging_buffer_memory );
 
-        std::tie( index_buffer, index_buffer_memory ) = create_buffer(
+        std::tie( index_buffer_memory, index_buffer ) = create_buffer(
             physical_device,
             device,
             size,
@@ -1059,7 +1059,7 @@ private:
     void create_uniform_buffer( void )
     {
         vk::DeviceSize size = sizeof( UniformBufferObject );
-        std::tie( uniform_buffer, uniform_buffer_memory ) = create_buffer(
+        std::tie( uniform_buffer_memory, uniform_buffer ) = create_buffer(
             physical_device,
             device,
             size,
