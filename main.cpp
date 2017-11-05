@@ -685,24 +685,25 @@ public:
 
     void present( void ) try
     {
+        constexpr static std::size_t NUM_COUNT = 1000u;
         static std::size_t count = 0u;
         static auto start = std::chrono::high_resolution_clock::now();
         count++;
-        if( count % 10000 == 0 )
+        if( count % NUM_COUNT == 0 )
         {
-            count = 0u;
+            // count = 0u;
             auto end = std::chrono::high_resolution_clock::now();
             std::cout << 1 /
                     std::chrono::duration< double >( end - start ).count() *
-                    10000
-                      << std::endl;
+                    NUM_COUNT
+                      << "fps" << std::endl;
             start = end;
         }
 
         UniformBufferObject ubo;
         ubo.model = glm::rotate(
             glm::mat4(),
-            count * glm::radians( 90.0f ),
+            count * glm::radians( 90.0f ) / 10000,
             glm::vec3( 0.0f, 0.0f, 1.0f ) );
         ubo.view = glm::lookAt(
             glm::vec3( 2.0f, 2.0f, 2.0f ),
