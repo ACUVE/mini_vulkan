@@ -22,109 +22,28 @@ namespace vulkan
     {
         template < typename >
         struct get_vulkan_format;
-        template <>
-        struct get_vulkan_format< float >
-        {
-            static constexpr vk::Format format = vk::Format::eR32Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec1< float, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec2< float, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec3< float, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32B32Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec4< float, P > >
-        {
-            static constexpr vk::Format format =
-                vk::Format::eR32G32B32A32Sfloat;
-        };
-        template <>
-        struct get_vulkan_format< double >
-        {
-            static constexpr vk::Format format = vk::Format::eR64Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec1< double, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR64Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec2< double, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR64G64Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec3< double, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR64G64B64Sfloat;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec4< double, P > >
-        {
-            static constexpr vk::Format format =
-                vk::Format::eR64G64B64A64Sfloat;
-        };
-        template <>
-        struct get_vulkan_format< int >
-        {
-            static constexpr vk::Format format = vk::Format::eR32Sint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec1< int, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32Sint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec2< int, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32Sint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec3< int, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32B32Sint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec4< int, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32B32A32Sint;
-        };
-        template <>
-        struct get_vulkan_format< glm::uint >
-        {
-            static constexpr vk::Format format = vk::Format::eR32Uint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec1< glm::uint, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32Uint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec2< glm::uint, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32Uint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec3< glm::uint, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32B32Uint;
-        };
-        template < glm::precision P >
-        struct get_vulkan_format< glm::tvec4< glm::uint, P > >
-        {
-            static constexpr vk::Format format = vk::Format::eR32G32B32A32Uint;
-        };
-
+        // clang-format off
+        template <> struct get_vulkan_format< float > { static constexpr vk::Format format = vk::Format::eR32Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec1< float, P > > { static constexpr vk::Format format = vk::Format::eR32Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec2< float, P > > { static constexpr vk::Format format = vk::Format::eR32G32Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec3< float, P > > { static constexpr vk::Format format = vk::Format::eR32G32B32Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec4< float, P > > { static constexpr vk::Format format = vk::Format::eR32G32B32A32Sfloat; };
+        template <> struct get_vulkan_format< double > { static constexpr vk::Format format = vk::Format::eR64Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec1< double, P > > { static constexpr vk::Format format = vk::Format::eR64Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec2< double, P > > { static constexpr vk::Format format = vk::Format::eR64G64Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec3< double, P > > { static constexpr vk::Format format = vk::Format::eR64G64B64Sfloat; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec4< double, P > > { static constexpr vk::Format format = vk::Format::eR64G64B64A64Sfloat; };
+        template <> struct get_vulkan_format< int > { static constexpr vk::Format format = vk::Format::eR32Sint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec1< int, P > > { static constexpr vk::Format format = vk::Format::eR32Sint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec2< int, P > > { static constexpr vk::Format format = vk::Format::eR32G32Sint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec3< int, P > > { static constexpr vk::Format format = vk::Format::eR32G32B32Sint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec4< int, P > > { static constexpr vk::Format format = vk::Format::eR32G32B32A32Sint; };
+        template <> struct get_vulkan_format< glm::uint > { static constexpr vk::Format format = vk::Format::eR32Uint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec1< glm::uint, P > > { static constexpr vk::Format format = vk::Format::eR32Uint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec2< glm::uint, P > > { static constexpr vk::Format format = vk::Format::eR32G32Uint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec3< glm::uint, P > > { static constexpr vk::Format format = vk::Format::eR32G32B32Uint; };
+        template < glm::precision P > struct get_vulkan_format< glm::tvec4< glm::uint, P > > { static constexpr vk::Format format = vk::Format::eR32G32B32A32Uint; };
+        // clang-format on
         template < typename T, std::size_t NUM >
         inline void get_attribute_description_impl(
             std::array< vk::VertexInputAttributeDescription, NUM > &ret,
