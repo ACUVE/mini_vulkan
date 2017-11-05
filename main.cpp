@@ -1069,6 +1069,9 @@ private:
     void create_descriptor_pool( void )
     {
         vk::DescriptorPoolSize descriptor_pool_size[ 1 ];
+        constexpr std::size_t descriptor_pool_size_size =
+            sizeof( descriptor_pool_size ) /
+            sizeof( descriptor_pool_size[ 0 ] );
         descriptor_pool_size[ 0 ].type = vk::DescriptorType::eUniformBuffer;
         descriptor_pool_size[ 0 ].descriptorCount = 1u;
 
@@ -1076,7 +1079,7 @@ private:
         descriptor_pool_info.flags =
             vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
         descriptor_pool_info.poolSizeCount =
-            static_cast< std::uint32_t >( std::size( descriptor_pool_size ) );
+            static_cast< std::uint32_t >( descriptor_pool_size_size );
         descriptor_pool_info.pPoolSizes = descriptor_pool_size;
         descriptor_pool_info.maxSets = 1u;
         uniform_descriptor_pool =
@@ -1086,10 +1089,13 @@ private:
     {
         vk::DescriptorSetLayout descriptor_set_layouts[] = {
             *ubo_descriptor_set_layout};
+        constexpr std::size_t descriptor_set_layouts_size =
+            sizeof( descriptor_set_layouts ) /
+            sizeof( descriptor_set_layouts[ 0 ] );
         vk::DescriptorSetAllocateInfo descriptor_set_allocate_info;
         descriptor_set_allocate_info.descriptorPool = *uniform_descriptor_pool;
         descriptor_set_allocate_info.descriptorSetCount =
-            static_cast< std::uint32_t >( std::size( descriptor_set_layouts ) );
+            static_cast< std::uint32_t >( descriptor_set_layouts_size );
         descriptor_set_allocate_info.pSetLayouts = descriptor_set_layouts;
         uniform_descriptor_set = std::move( device.allocateDescriptorSetsUnique(
             descriptor_set_allocate_info )[ 0 ] );
