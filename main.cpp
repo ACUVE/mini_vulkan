@@ -557,9 +557,13 @@ auto auto_submit_onetime_unique_command_buffer(
             auto_submit_onetime_unique_command_buffer_struct const & ) = delete;
         auto_submit_onetime_unique_command_buffer_struct &operator=(
             auto_submit_onetime_unique_command_buffer_struct && ) = default;
-        vk::CommandBuffer const *operator->()
+        vk::CommandBuffer const *operator->() const
         {
             return &*command_buffer;
+        }
+        vk::CommandBuffer operator*() const
+        {
+            return *command_buffer;
         }
         ~auto_submit_onetime_unique_command_buffer_struct()
         {
