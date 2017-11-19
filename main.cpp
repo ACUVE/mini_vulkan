@@ -588,29 +588,12 @@ void copy_buffer(
     vk::Buffer dst_buffer,
     vk::DeviceSize size )
 {
-    vk::CommandBufferAllocateInfo command_buffer_allocate_info;
-    command_buffer_allocate_info.level = vk::CommandBufferLevel::ePrimary;
-    command_buffer_allocate_info.commandPool = command_pool;
-    command_buffer_allocate_info.commandBufferCount = 1;
-    auto command_buffers =
-        device.allocateCommandBuffersUnique( command_buffer_allocate_info );
-    auto &command_buffer = command_buffers[ 0 ];
-
-    vk::CommandBufferBeginInfo begin_info;
-    begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-    command_buffer->begin( begin_info );
+    auto onetime_command_buffer = auto_submit_onetime_unique_command_buffer(
+        device, queue, command_pool );
 
     vk::BufferCopy copy;
     copy.size = size;
-    command_buffer->copyBuffer( src_buffer, dst_buffer, copy );
-
-    command_buffer->end();
-
-    vk::SubmitInfo submit_info;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &*command_buffer;
-    queue.submit( 1u, &submit_info, nullptr );
-    queue.waitIdle();
+    onetime_command_buffer->copyBuffer( src_buffer, dst_buffer, copy );
 }
 
 vk::Format find_supported_format(
